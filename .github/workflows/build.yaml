@@ -1,0 +1,43 @@
+name: Build
+
+on:
+  pull_request:
+    branches:
+      - '*'
+  push:
+    branches:
+      - 'master'
+
+jobs:
+  build-binraries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '^1.18'
+      - name: Build Binaries
+        run: go build
+      - name: Upload Binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: gl
+          path: gl
+          retention-days: 1
+      - name: Upload 2 Artifactory
+        run: |
+          curl --fail -u${USER}:${PASS} -XPUT "${ENDPOINT}"/bin/gitlab/gl \
+          -T gl
+        env:
+          USER: ${{ secrets.ARTIFACTORY_USER }}
+          PASS: ${{ secrets.ARTIFACTORY_PASS }}
+          ENDPOINT: https://dl.qameta.io/artifactory
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: build-binraries
+    if: always()
+    steps:
+      - name: Cleanup Binaries
+        uses: geekyeggo/delete-artifact@v1
+        with:
+          name: gl
